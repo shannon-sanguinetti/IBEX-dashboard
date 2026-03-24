@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IBEX — Customer Health Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/3.0.1/chartjs-plugin-annotation.min.js"></script>
+<style>
+:root {
+  --bg:#0a0e1a; --surface:#111827; --surface2:#1a2234;
+  --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.14);
+  --text:#ffffff; --text-sec:#dde3f5; --text-muted:#a0aac8;
+  --healthy:#00d4aa; --healthy-dim:rgba(0,212,170,0.12);
+  --watch:#8ecf3f;  --watch-dim:rgba(142,207,63,0.12);
+  --risk:#ff5c5c;   --risk-dim:rgba(255,92,92,0.12);
+  --warn:#f59e0b;   --warn-dim:rgba(245,158,11,0.12);
+  --impl:#7c72ff;   --impl-dim:rgba(124,114,255,0.12);
+  --accent:#3b7fff;
+  --font:'Josefin Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(59,127,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(59,127,255,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+.page{position:relative;z-index:1;max-width:1300px;margin:0 auto;padding:40px 32px 80px;}
+header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:48px;flex-wrap:wrap;gap:16px;}
+.logo-area h1{font-size:11px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);margin-bottom:10px;}
+.logo-area h2{font-size:34px;font-weight:600;letter-spacing:.04em;line-height:1.15;color:var(--text);text-transform:uppercase;}
+.header-meta{text-align:right;font-size:11px;font-weight:600;letter-spacing:.18em;color:var(--text-sec);line-height:2.2;text-transform:uppercase;}
+.kpi-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:40px;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px 24px;position:relative;overflow:hidden;transition:border-color .2s;}
+.kpi:hover{border-color:var(--border2);}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.kpi.healthy::before{background:var(--healthy);}
+.kpi.watch::before{background:var(--watch);}
+.kpi.risk::before{background:var(--risk);}
+.kpi.warn::before{background:var(--warn);}
+.kpi.impl::before{background:var(--impl);}
+.kpi-label{font-size:10px;font-weight:600;letter-spacing:.28em;text-transform:uppercase;color:var(--text-sec);margin-bottom:10px;}
+.kpi-value{font-size:42px;font-weight:300;letter-spacing:-.02em;line-height:1;margin-bottom:6px;}
+.kpi.healthy .kpi-value{color:var(--healthy);}
+.kpi.watch .kpi-value{color:var(--watch);}
+.kpi.risk .kpi-value{color:var(--risk);}
+.kpi.warn .kpi-value{color:var(--warn);}
+.kpi.impl .kpi-value{color:var(--impl);}
+.kpi-sub{font-size:10px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text-sec);}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:10px 32px;margin-bottom:32px;padding:18px 24px;background:var(--surface);border:1px solid var(--border);border-radius:12px;}
+.legend-item{display:flex;align-items:center;gap:10px;font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--text-sec);}
+.legend-swatch{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.section-title{font-size:9px;font-weight:600;letter-spacing:.28em;text-transform:uppercase;color:var(--text-muted);margin-bottom:16px;display:flex;align-items:center;gap:12px;}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border);}
+.portfolio-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;}
+.pstat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;}
+.pstat-label{font-size:9px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;}
+.pstat-value{font-size:22px;font-weight:300;letter-spacing:-.01em;color:var(--text);margin-bottom:2px;}
+.pstat-sub{font-size:9px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted);}
+.portfolio-narrative{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:32px;border-left:3px solid var(--accent);}
+.portfolio-narrative p{font-size:12px;font-weight:300;letter-spacing:.04em;color:var(--text-sec);line-height:1.9;}
+.portfolio-narrative strong{font-weight:600;color:var(--text);}
+.scatter-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:32px;}
+.scatter-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px;}
+.scatter-card-title{font-size:9px;font-weight:600;letter-spacing:.25em;text-transform:uppercase;color:var(--text-sec);margin-bottom:4px;}
+.scatter-card-sub{font-size:10px;font-weight:300;letter-spacing:.1em;color:var(--text-muted);margin-bottom:14px;}
+.scatter-legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:12px;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);}
+.sleg-i{display:flex;align-items:center;gap:5px;}
+.sleg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.sleg-line{width:18px;height:0;border-top:2px dashed #888780;}
+.scatter-wrap{position:relative;width:100%;height:240px;}
+.scatter-wrap canvas{cursor:default;}
+#avgScatter{cursor:pointer;}
+.stat-chips{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.schip{background:var(--surface2);border-radius:8px;padding:6px 12px;}
+.schip-l{font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text-muted);margin-bottom:2px;}
+.schip-v{font-size:14px;font-weight:300;color:var(--text);}
+.filter-bar{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;}
+.filter-btn{font-size:10px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;padding:8px 20px;border-radius:100px;border:1px solid var(--border2);background:transparent;color:var(--text-sec);cursor:pointer;transition:all .2s;}
+.filter-btn:hover{border-color:var(--accent);color:var(--text);}
+.filter-btn.active{color:#0a0e1a;border-color:transparent;}
+.filter-btn.f-all.active{background:var(--accent);color:white;}
+.filter-btn.f-healthy.active{background:var(--healthy);}
+.filter-btn.f-watch.active{background:var(--watch);}
+.filter-btn.f-risk.active{background:var(--risk);}
+.filter-btn.f-warn.active{background:var(--warn);}
+.filter-btn.f-impl.active{background:var(--impl);color:white;}
+.customer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:20px;margin-bottom:48px;}
+.customer-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:26px;cursor:pointer;transition:all .25s;position:relative;overflow:hidden;}
+.customer-card:hover{border-color:var(--border2);transform:translateY(-2px);}
+.customer-card.healthy{border-left:3px solid var(--healthy);}
+.customer-card.watch{border-left:3px solid var(--watch);}
+.customer-card.risk{border-left:3px solid var(--risk);}
+.customer-card.warn{border-left:3px solid var(--warn);}
+.customer-card.impl{border-left:3px solid var(--impl);}
+.customer-card.active-card{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 8px 40px rgba(59,127,255,.15);}
+.card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;}
+.card-name{font-size:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text);margin-bottom:6px;}
+.card-badges{display:flex;gap:6px;flex-wrap:wrap;}
+.badge{font-size:9px;font-weight:600;letter-spacing:.18em;padding:3px 10px;border-radius:100px;text-transform:uppercase;}
+.badge-live{background:rgba(0,212,170,.12);color:var(--healthy);}
+.badge-impl-st{background:var(--impl-dim);color:var(--impl);}
+.badge-routine{background:rgba(59,127,255,.12);color:#9bb8ff;}
+.badge-eval{background:var(--warn-dim);color:var(--warn);}
+.health-pill{font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;padding:6px 16px;border-radius:100px;white-space:nowrap;}
+.health-pill.healthy{background:var(--healthy-dim);color:var(--healthy);border:1px solid rgba(0,212,170,.3);}
+.health-pill.watch{background:var(--watch-dim);color:var(--watch);border:1px solid rgba(142,207,63,.3);}
+.health-pill.risk{background:var(--risk-dim);color:var(--risk);border:1px solid rgba(255,92,92,.3);}
+.health-pill.warn{background:var(--warn-dim);color:var(--warn);border:1px solid rgba(245,158,11,.3);}
+.health-pill.impl{background:var(--impl-dim);color:var(--impl);border:1px solid rgba(124,114,255,.3);}
+.card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px;}
+.stat-label{font-size:9px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--text-sec);margin-bottom:4px;}
+.stat-value{font-size:19px;font-weight:300;letter-spacing:-.01em;color:var(--text);}
+.var-section{background:var(--surface2);border-radius:10px;padding:12px 14px;margin-bottom:14px;border:1px solid var(--border);}
+.var-title{font-size:9px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;}
+.var-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.var-label{font-size:8px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;}
+.var-val{font-size:15px;font-weight:300;color:var(--text);}
+.var-compare{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;margin-top:6px;}
+.risk-factors{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.risk-factor{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;}
+.risk-factor.sev-high{background:rgba(255,92,92,.1);border:1px solid rgba(255,92,92,.2);}
+.risk-factor.sev-med{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.2);}
+.risk-factor.sev-low{background:rgba(142,207,63,.08);border:1px solid rgba(142,207,63,.15);}
+.risk-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.risk-dot.sev-high{background:var(--risk);}
+.risk-dot.sev-med{background:var(--warn);}
+.risk-dot.sev-low{background:var(--watch);}
+.risk-text{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;}
+.risk-factor.sev-high .risk-text{color:var(--risk);}
+.risk-factor.sev-med .risk-text{color:var(--warn);}
+.risk-factor.sev-low .risk-text{color:var(--watch);}
+.mini-chart-container{height:56px;position:relative;}
+.detail-panel{background:var(--surface);border:1px solid var(--border2);border-radius:24px;padding:40px;margin-bottom:48px;display:none;animation:slideIn .3s ease;}
+.detail-panel.visible{display:block;}
+@keyframes slideIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.detail-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:16px;}
+.detail-title{font-size:24px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text);}
+.close-btn{font-size:10px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;padding:8px 18px;border-radius:100px;border:1px solid var(--border2);background:transparent;color:var(--text-sec);cursor:pointer;transition:all .2s;}
+.close-btn:hover{border-color:var(--risk);color:var(--risk);}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
+.detail-chart-wrap{height:230px;position:relative;}
+.detail-insights{display:flex;flex-direction:column;gap:10px;}
+.insight-row{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);}
+.insight-label{font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--text-sec);}
+.insight-value{font-size:14px;font-weight:300;color:var(--text);}
+.account-note{padding:14px 16px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);}
+.account-note-text{font-size:12px;font-weight:300;letter-spacing:.04em;color:var(--text-sec);line-height:1.8;}
+.detail-risks{margin-top:20px;}
+.detail-risk-item{padding:12px 16px;border-radius:10px;margin-bottom:8px;}
+.detail-risk-item.sev-high{background:rgba(255,92,92,.08);border:1px solid rgba(255,92,92,.2);}
+.detail-risk-item.sev-med{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);}
+.detail-risk-item.sev-low{background:rgba(142,207,63,.06);border:1px solid rgba(142,207,63,.15);}
+.detail-risk-header{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.detail-risk-title{font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;}
+.detail-risk-item.sev-high .detail-risk-title{color:var(--risk);}
+.detail-risk-item.sev-med  .detail-risk-title{color:var(--warn);}
+.detail-risk-item.sev-low  .detail-risk-title{color:var(--watch);}
+.detail-risk-reason{font-size:11px;font-weight:300;letter-spacing:.04em;color:var(--text-sec);line-height:1.7;}
+.summary-table-wrap{overflow-x:auto;border-radius:16px;border:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;}
+thead th{font-size:9px;font-weight:600;letter-spacing:.25em;text-transform:uppercase;color:var(--text-sec);padding:16px 20px;text-align:left;background:var(--surface2);border-bottom:1px solid var(--border);}
+tbody td{padding:14px 20px;border-bottom:1px solid var(--border);font-size:12px;font-weight:400;letter-spacing:.08em;color:var(--text-sec);}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--surface2);cursor:pointer;}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;}
+.dot.healthy{background:var(--healthy);}
+.dot.watch{background:var(--watch);}
+.dot.risk{background:var(--risk);}
+.dot.warn{background:var(--warn);}
+.dot.impl{background:var(--impl);}
+.trend-up{color:var(--healthy);}
+.trend-down{color:var(--risk);}
+.trend-flat{color:var(--watch);}
+/* ── Overview pie + doughnut ── */
+.overview-charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
+.ov-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 24px;display:flex;flex-direction:column;align-items:center;}
+.ov-card-title{font-size:10px;font-weight:600;letter-spacing:.25em;text-transform:uppercase;color:var(--text-sec);margin-bottom:3px;align-self:flex-start;}
+.ov-card-sub{font-size:9px;font-weight:400;letter-spacing:.1em;color:var(--text-muted);margin-bottom:14px;align-self:flex-start;}
+.ov-chart-wrap{position:relative;width:180px;height:180px;}
+.ov-legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:16px;justify-content:center;}
+.ov-leg-i{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);}
+.ov-leg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+@media(max-width:700px){.overview-charts{grid-template-columns:1fr;}}
+.acct-bar{display:flex;align-items:stretch;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+.acct-tile-total,.acct-tile-active,.acct-tile-inactive{display:flex;flex-direction:column;justify-content:center;padding:12px 20px;border-radius:10px;border:1px solid var(--border);min-width:140px;}
+.kpi-clickable{cursor:pointer;transition:all 0.2s;}
+.kpi-clickable:hover{transform:translateY(-2px);border-color:var(--border2);}
+.acct-tile-clickable:hover{transform:translateY(-2px);border-color:var(--border2);}
+.acct-tile-total.acct-tile-clickable:hover{border-color:var(--accent);}
+.acct-tile-active.acct-tile-clickable:hover{border-color:rgba(96,180,255,0.5);}
+.acct-tile-inactive.acct-tile-clickable:hover{border-color:rgba(255,154,154,0.5);}
+.acct-tile-active{background:rgba(59,127,255,0.10);border-color:rgba(59,127,255,0.2);}
+.acct-tile-inactive{background:rgba(180,60,60,0.10);border-color:rgba(180,60,60,0.2);}
+.acct-bar-label{font-size:9px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;}
+.acct-bar-val{font-size:22px;font-weight:300;color:var(--text);line-height:1;margin-bottom:3px;}
+.acct-bar-hint{font-size:9px;font-weight:400;letter-spacing:.06em;color:var(--text-muted);}
+/* ── Snapshot chart card ── */
+.snapshot-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px 28px;margin-bottom:32px;}
+.snapshot-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:16px;flex-wrap:wrap;}
+.snapshot-title{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text);margin-bottom:4px;}
+.snapshot-sub{font-size:10px;font-weight:300;letter-spacing:.08em;color:var(--text-muted);}
+.snapshot-legend{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.snap-leg-i{display:flex;align-items:center;gap:5px;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);}
+.snap-leg-line{width:18px;height:2px;flex-shrink:0;border-radius:1px;}
+.snapshot-chart-wrap{position:relative;width:100%;height:420px;}
+@media(max-width:600px){.kpi-strip,.portfolio-stats{grid-template-columns:repeat(2,1fr);}}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <div class="logo-area">
+    <h1>IBEX Medical Analytics</h1>
+    <h2>Customer Health<br>Dashboard</h2>
+  </div>
+  <div class="header-meta">
+    <div>Period: Jan 2025 — Nov 2025</div>
+    <div>Total customers: 10</div>
+    <div>Product: Ibex Prostate AI</div>
+    <div>Generated: Nov 2025</div>
+  </div>
+</header>
+
+<!-- KPI strip — updated counts: Healthy=2, Watch=2, At Risk=4, Eval=1, Impl=2 -->
+<!-- Account summary strip — above health tier KPIs -->
+<div class="acct-bar">
+  <div class="acct-tile-total acct-tile-clickable" onclick="filterByStatus('all')" title="Show all accounts">
+    <div class="acct-bar-label">Total customers</div>
+    <div class="acct-bar-val">10</div>
+  </div>
+  <div class="acct-tile-active acct-tile-clickable" onclick="filterByStatus('live')" title="Show live accounts">
+    <div class="acct-bar-label">Live</div>
+    <div class="acct-bar-val" style="color:#60b4ff">8</div>
+    <div class="acct-bar-hint">contracted & live</div>
+  </div>
+  <div class="acct-tile-inactive acct-tile-clickable" onclick="filterByStatus('inactive')" title="Show inactive accounts">
+    <div class="acct-bar-label">Inactive</div>
+    <div class="acct-bar-val" style="color:#ff9a9a">3</div>
+    <div class="acct-bar-hint">H_017 zero usage · H_034 · H_035 in implementation</div>
+  </div>
+</div>
+
+<!-- Pie + doughnut overview charts -->
+<div class="overview-charts">
+  <div class="ov-card">
+    <div class="ov-card-title">Account status</div>
+    <div class="ov-card-sub">10 total contracted accounts</div>
+    <div class="ov-chart-wrap"><canvas id="pieChart"></canvas></div>
+    <div class="ov-legend" id="pieLegend"></div>
+  </div>
+  <div class="ov-card">
+    <div class="ov-card-title">Health tier breakdown</div>
+    <div class="ov-card-sub">Live accounts only</div>
+    <div class="ov-chart-wrap"><canvas id="donutChart"></canvas></div>
+    <div class="ov-legend" id="donutLegend"></div>
+  </div>
+</div>
+
+<div class="kpi-strip">
+  <div class="kpi healthy kpi-clickable" onclick="filterCards('healthy', document.querySelector('.f-healthy'))" title="Filter by Healthy"><div class="kpi-label">Healthy</div><div class="kpi-value">2</div><div class="kpi-sub">strong · growing</div></div>
+  <div class="kpi watch kpi-clickable"   onclick="filterCards('watch',   document.querySelector('.f-watch'))"   title="Filter by Watch"><div class="kpi-label">Watch</div><div class="kpi-value">3</div><div class="kpi-sub">engaged · monitor</div></div>
+  <div class="kpi risk kpi-clickable"    onclick="filterCards('risk',    document.querySelector('.f-risk'))"    title="Filter by At Risk"><div class="kpi-label">At Risk</div><div class="kpi-value">2</div><div class="kpi-sub">intervention needed</div></div>
+  <div class="kpi warn kpi-clickable"    onclick="filterCards('warn',    document.querySelector('.f-warn'))"    title="Filter by Evaluation"><div class="kpi-label">Evaluation</div><div class="kpi-value">1</div><div class="kpi-sub">conversion at risk</div></div>
+  <div class="kpi impl kpi-clickable"    onclick="filterCards('impl',    document.querySelector('.f-impl'))"    title="Filter by Implementation"><div class="kpi-label">Implementation</div><div class="kpi-value">2</div><div class="kpi-sub">not yet live</div></div>
+</div>
+
+<!-- Legend: Healthy / Evaluation top row, Watch / Implementation middle, At Risk bottom-left -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--healthy)"></div>Healthy — high volume, consistent growth</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--warn)"></div>Evaluation — not yet converted to routine use <span style="color:var(--risk);margin-left:4px;">(H_062 flagged at risk — shown in red)</span></div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--watch)"></div>Watch — engaged but newer, variable, or limited scale</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--impl)"></div>Implementation — pre-live, awaiting go-live</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--risk)"></div>At Risk — declining volume or zero adoption</div>
+  <div class="legend-item" style="visibility:hidden"></div>
+</div>
+
+<!-- Portfolio health -->
+<div class="section-title">Portfolio health overview</div>
+<div class="portfolio-stats">
+  <div class="pstat"><div class="pstat-label">Total cases YTD</div><div class="pstat-value">18,615</div><div class="pstat-sub">across 7 active hospitals</div></div>
+  <div class="pstat"><div class="pstat-label">Portfolio view rate</div><div class="pstat-value" style="color:var(--healthy)">99.8%</div><div class="pstat-sub">cases reviewed by pathologist</div></div>
+  <div class="pstat"><div class="pstat-label">Avg processing time</div><div class="pstat-value">13.9 min</div><div class="pstat-sub">portfolio median 13.5 min</div></div>
+  <div class="pstat"><div class="pstat-label">Best proc time</div><div class="pstat-value" style="color:var(--healthy)">12.8 min</div><div class="pstat-sub">H_060 — fastest in portfolio</div></div>
+  <div class="pstat"><div class="pstat-label">Adoption rate</div><div class="pstat-value" style="color:var(--warn)">60%</div><div class="pstat-sub">6 of 10 accounts live & active</div></div>
+</div>
+
+<div class="portfolio-narrative">
+  <p>The portfolio shows <strong>strong clinical engagement where the product is in use</strong> — a near-perfect 99.8% view rate signals that pathologists are trusting and acting on every AI result. <strong>Trend figures use robust linear regression excluding statistical outliers</strong>, providing a more accurate picture of underlying momentum. This corrects two notable misreadings from the prior method: H_063 previously showed -5.6% but is actually trending <strong>+18.7%</strong> (August spike was distorting the comparison), while H_060's apparent +29.6% collapses to <strong>-20.4%</strong> once its low ramp month is excluded — a genuine post-ramp decline that contributed to its reclassification to At Risk. H_068 is confirmed worse than previously assessed at <strong>-44.1%</strong>. Adoption remains the critical challenge: <strong>H_017 has been live 11 months with zero usage</strong> and requires immediate escalation.</p>
+</div>
+
+<!-- Scatter plots -->
+<div class="section-title">Processing time analysis</div>
+<div class="scatter-grid">
+  <div class="scatter-card">
+    <div class="scatter-card-title">Hospital average processing time</div>
+    <div class="scatter-card-sub">One point per active hospital — avg across full active period</div>
+    <div class="stat-chips">
+      <div class="schip"><div class="schip-l">Mean</div><div class="schip-v">13.9 min</div></div>
+      <div class="schip"><div class="schip-l">Outlier fence</div><div class="schip-v">15.9 min</div></div>
+      <div class="schip"><div class="schip-l">Outliers</div><div class="schip-v" style="color:var(--risk)">1 hospital</div></div>
+    </div>
+    <div class="scatter-legend">
+      <span class="sleg-i"><span class="sleg-dot" style="background:#E24B4A"></span>Outlier</span>
+      <span class="sleg-i"><span class="sleg-dot" style="background:#EF9F27"></span>Elevated</span>
+      <span class="sleg-i"><span class="sleg-dot" style="background:#378ADD"></span>Normal</span>
+      <span class="sleg-i"><span class="sleg-line"></span>Outlier fence</span>
+    </div>
+    <div class="scatter-wrap"><canvas id="avgScatter"></canvas></div>
+  </div>
+  <div class="scatter-card">
+    <div class="scatter-card-title">All monthly observations</div>
+    <div class="scatter-card-sub">59 data points — one per hospital-month, hover for detail</div>
+    <div class="stat-chips">
+      <div class="schip"><div class="schip-l">Observations</div><div class="schip-v">59</div></div>
+      <div class="schip"><div class="schip-l">Outlier fences</div><div class="schip-v">11.2 – 16.1 min</div></div>
+      <div class="schip"><div class="schip-l">Outliers</div><div class="schip-v" style="color:var(--risk)">9 of 59</div></div>
+    </div>
+    <div class="scatter-legend">
+      <span class="sleg-i"><span class="sleg-dot" style="background:#E24B4A"></span>Upper outlier</span>
+      <span class="sleg-i"><span class="sleg-dot" style="background:#3B8BD4"></span>Lower outlier</span>
+      <span class="sleg-i"><span class="sleg-dot" style="background:#378ADD;opacity:.5"></span>Normal</span>
+      <span class="sleg-i"><span class="sleg-line"></span>Outlier fences</span>
+    </div>
+    <div class="scatter-wrap"><canvas id="allScatter"></canvas></div>
+  </div>
+</div>
+
+<!-- Portfolio health snapshot — line chart -->
+<div class="section-title">Portfolio health snapshot — monthly case volume per hospital</div>
+<div class="snapshot-card">
+  <div class="snapshot-header">
+    <div>
+      <div class="snapshot-title">Account volume trends — lifetime vs last 3 months</div>
+      <div class="snapshot-sub">Each line = one hospital · shaded region = last 3 months (Sep–Nov) · hover for values</div>
+    </div>
+    <div class="snapshot-legend" id="snapshotLegend"></div>
+  </div>
+  <div class="snapshot-chart-wrap"><canvas id="snapshotChart"></canvas></div>
+</div>
+
+<!-- Customer portfolio -->
+<div class="section-title">Customer portfolio</div>
+<div class="filter-bar">
+  <button class="filter-btn f-all active" onclick="filterCards('all',this)">All (10)</button>
+  <button class="filter-btn f-healthy"    onclick="filterCards('healthy',this)">Healthy (2)</button>
+  <button class="filter-btn f-watch"      onclick="filterCards('watch',this)">Watch (3)</button>
+  <button class="filter-btn f-risk"       onclick="filterCards('risk',this)">At Risk (2)</button>
+  <button class="filter-btn f-warn"       onclick="filterCards('warn',this)">Evaluation (1)</button>
+  <button class="filter-btn f-impl"       onclick="filterCards('impl',this)">Implementation (2)</button>
+</div>
+
+<div class="customer-grid" id="customerGrid"></div>
+
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-header">
+    <div>
+      <div id="detailTitle" class="detail-title"></div>
+      <div id="detailBadges" style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;"></div>
+    </div>
+    <button class="close-btn" onclick="closeDetail()">✕ Close</button>
+  </div>
+  <div class="detail-grid">
+    <div>
+      <div class="section-title" style="margin-bottom:12px;">Monthly case volume</div>
+      <div class="detail-chart-wrap"><canvas id="detailChart"></canvas></div>
+      <div class="detail-risks" id="detailRisks"></div>
+    </div>
+    <div class="detail-insights" id="detailInsights"></div>
+  </div>
+</div>
+
+<!-- Portfolio summary -->
+<div class="section-title">Portfolio summary</div>
+<div class="summary-table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Customer</th><th>Health</th><th>Status</th><th>Usage</th>
+        <th>Total cases</th><th>Trend</th><th>View rate</th><th>Avg proc time</th><th>Months active</th>
+      </tr>
+    </thead>
+    <tbody id="summaryTable"></tbody>
+  </table>
+</div>
+
+</div>
+
+<script>
+const HEALTH_LABEL={healthy:'Healthy',watch:'Watch',risk:'At Risk',warn:'Evaluation',impl:'Implementation'};
+const HEALTH_COLOR={healthy:'#00d4aa',watch:'#8ecf3f',risk:'#ff5c5c',warn:'#f59e0b',impl:'#7c72ff'};
+const gc='rgba(255,255,255,0.05)',tc='#a0aac8',lc='#ffffff';
+
+/* ── Color helpers ── */
+/* CHANGE 1: faster = healthier. ≤13.5=green, 13.6-14.2=yellow-green, 14.3-15.0=amber, >15.0=red */
+function procColor(v){
+  if(!v||v===0)return'#a0aac8';
+  if(v<=13.5)return'#00d4aa';
+  if(v<=14.2)return'#8ecf3f';
+  if(v<=15.0)return'#f59e0b';
+  return'#ff5c5c';
+}
+/* Relative view rate: compared to portfolio norm of 100%
+   100% every month → green | 1 slip, avg ≥99.5% → yellow-green
+   1 slip, avg <99.5% OR avg 98-99.4% → amber | 4+ months below OR avg <98.5% → red */
+function viewColor(v,months_below,avg_vr){
+  if(v===null||v===undefined||v===0)return'#ff5c5c';
+  if(avg_vr===undefined)avg_vr=v;
+  if(months_below===undefined)months_below=v>=100?0:1;
+  if(avg_vr>=99.97&&months_below===0)return'#00d4aa';
+  if(avg_vr>=99.5&&months_below<=1)return'#8ecf3f';
+  if(avg_vr>=99.0&&months_below<=1)return'#f59e0b';
+  return'#ff5c5c';
+}
+function trendColor(v){
+  if(v===0)return'#a0aac8';
+  if(v>10)return'#00d4aa';
+  if(v>0)return'#8ecf3f';
+  if(v>-10)return'#f59e0b';
+  return'#ff5c5c';
+}
+function varColor(v){
+  if(v===null||v===undefined)return'#a0aac8';
+  if(v<10)return'#00d4aa';
+  if(v<20)return'#8ecf3f';
+  if(v<35)return'#f59e0b';
+  return'#ff5c5c';
+}
+
+/* ── Customer data — ordered by overall health rank ── */
+const customers=[
+  /* ── HEALTHY ── */
+  {id:'Hospital_041',health:'healthy',status:'Live',usage:'Routine Use',
+   total_cases:8783,avg_proc_min:13.2,trend_pct:12.0,view_rate:100.0,months_below:0,avg_vr:100.0,months_active:11,
+   cv_vol_life:8.1,cv_vol_3m:7.4,cv_pt_life:3.1,cv_pt_3m:0.5,combined_var:5.4,
+   months:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'],
+   cases:[704,763,818,793,816,717,890,751,826,913,792],
+   viewed:[704,763,818,793,816,717,890,751,826,913,792],
+   risks:[{sev:'low',label:'Volume dip Jun',reason:'June saw a 12% drop to 717 cases from 816 the prior month. Likely scheduling-related; recovered strongly in July to 890. Monitor for recurrence.'}],
+   note:'Flagship account. Highest volume in portfolio with consistently strong engagement across all 11 months. 100% view rate, steady growth, and the second-fastest processing time at 13.2 min — a model customer and strong candidate for expansion to additional tissue types.'},
+
+  {id:'Hospital_058',health:'healthy',status:'Live',usage:'Routine Use',
+   total_cases:6252,avg_proc_min:13.3,trend_pct:8.9,view_rate:100.0,months_below:0,avg_vr:100.0,months_active:11,
+   cv_vol_life:7.5,cv_vol_3m:7.2,cv_pt_life:1.5,cv_pt_3m:0.7,combined_var:4.9,
+   months:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'],
+   cases:[508,602,550,540,567,567,602,507,607,644,558],
+   viewed:[508,602,550,540,567,567,602,507,607,644,558],
+   risks:[{sev:'low',label:'Aug volume dip',reason:'August dropped to 507 cases — the lowest month on record. Recovered to 607 in September. Likely a staffing or holiday-related anomaly. No sustained pattern.'}],
+   note:'Second highest volume, stable and growing through the full year. Lowest processing time variability in portfolio (CV 1.5%) signals deep workflow integration. Excellent reference account.'},
+
+  /* ── WATCH — ordered by health quality ── */
+  {id:'Hospital_063',health:'watch',status:'Live',usage:'Routine Use',
+   total_cases:243,avg_proc_min:13.1,trend_pct:18.7,view_rate:99.4,months_below:1,avg_vr:99.4,months_active:6,
+   cv_vol_life:23.6,cv_vol_3m:18.7,cv_pt_life:11.6,cv_pt_3m:2.3,combined_var:16.0,
+   months:['Jun','Jul','Aug','Sep','Oct','Nov'],
+   cases:[28,43,54,31,45,42],
+   viewed:[27,43,54,31,45,42],
+   risks:[
+     {sev:'med',label:'Single-point-of-failure risk',reason:'Volume ceiling of ~40–54 cases/month consistent with a single-pathologist lab. If the champion pathologist changes role, goes on leave, or loses interest, the account could go dark immediately. No secondary contact identified.'},
+     {sev:'low',label:'Apparent dip was not a trend',reason:'Previous metric showed -5.6% due to a first3-vs-last3 distortion. Robust linear regression confirms the actual slope is +18.7% — a genuinely positive trajectory. The August spike to 54 cases was not an outlier; the underlying trend is healthy.'},
+     {sev:'low',label:'Small account ceiling',reason:'Absolute volume is modest (~40 cases/month). Opportunity to expand to additional pathologists or case types if the lab has more capacity.'}
+   ],
+   note:'Consistent engagement and near-perfect view rate. Robust trend analysis confirms +18.7% growth — correcting a prior misleading reading. Fastest processing improvement in the portfolio (recent CV 2.3%). Likely a loyal single-pathologist lab with a stable, embedded workflow.'},
+
+  {id:'Hospital_008',health:'watch',status:'Live',usage:'Routine Use',
+   total_cases:2173,avg_proc_min:14.3,trend_pct:42.4,view_rate:99.96,months_below:1,avg_vr:99.96,months_active:11,
+   cv_vol_life:17.7,cv_vol_3m:5.2,cv_pt_life:6.4,cv_pt_3m:7.6,combined_var:10.9,
+   months:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'],
+   cases:[149,149,193,170,221,164,228,200,240,240,219],
+   viewed:[149,149,193,170,221,164,228,200,240,239,219],
+   risks:[
+     {sev:'med',label:'Above-avg proc time',reason:'Average processing time of 14.3 min is above the portfolio mean of 13.9 min. May 2025 spiked to 16.5 min (outlier). Processing time is a health indicator — slower times erode pathologist confidence and can suppress usage over time.'},
+     {sev:'med',label:'High volume variability',reason:'Lifetime volume CV of 17.7% indicates inconsistent monthly usage, ranging from 149 to 240 cases. Suggests the AI is not yet embedded as a standard workflow tool across all pathologists in the lab.'},
+     {sev:'low',label:'Low absolute volume',reason:'Despite 11 months of activity, monthly caseload (avg 197) is well below peers H_041 (799) and H_058 (568). Opportunity to expand adoption to additional pathologists or case types.'}
+   ],
+   note:'Engaged since January with a strong positive trend (+42.4%), but processing time of 14.3 min sits above the portfolio mean and monthly volume is inconsistent. Ranks below H_063 on overall health due to higher variability score (10.9 vs 16.0) and elevated processing time.'},
+
+  {id:'Hospital_060',health:'watch',status:'Live',usage:'Routine Use',
+   total_cases:868,avg_proc_min:12.8,trend_pct:-20.4,view_rate:98.47,months_below:4,avg_vr:98.47,months_active:6,
+   cv_vol_life:40.2,cv_vol_3m:18.1,cv_pt_life:7.6,cv_pt_3m:4.0,combined_var:22.0,
+   months:['Jun','Jul','Aug','Sep','Oct','Nov'],
+   cases:[33,165,180,170,189,131],
+   viewed:[31,164,180,167,189,130],
+   risks:[
+     {sev:'high',label:'Post-ramp trend declining -20.4%',reason:'Robust linear regression (excluding the June ramp month of 33 cases as a statistical outlier) reveals the underlying post-ramp trend is -20.4%. The previously reported +29.6% was entirely an artifact of the low ramp-up month. The actual trajectory after stabilization is downward.'},
+     {sev:'med',label:'Nov volume decline',reason:'November dropped to 131 cases from a peak of 189 in October — a 31% single-month decline. With the robust trend also negative, this cannot be dismissed as seasonal noise. Confirm whether this reflects staffing, caseload, or engagement changes at the next QBR.'},
+     {sev:'low',label:'Limited history',reason:'Only 6 months of data. Requires 2–3 more months of sustained stable or growing volume to graduate out of Watch.'}
+   ],
+   note:'Post-ramp robust trend is -20.4% and view rate is the weakest in the portfolio (98.47%, 4 of 6 months below 100%). Processing time remains the fastest at 12.8 min and the account is still engaged. Requires close monitoring.'},
+
+  /* ── AT RISK ── */
+  {id:'Hospital_068',health:'risk',status:'Live',usage:'Routine Use',
+   total_cases:169,avg_proc_min:16.0,trend_pct:-44.1,view_rate:100.0,months_below:0,avg_vr:100.0,months_active:6,
+   cv_vol_life:35.4,cv_vol_3m:33.2,cv_pt_life:9.9,cv_pt_3m:8.2,combined_var:24.4,
+   months:['Jun','Jul','Aug','Sep','Oct','Nov'],
+   cases:[22,45,29,33,23,17],
+   viewed:[22,45,29,33,23,17],
+   risks:[
+     {sev:'high',label:'Processing time outlier',reason:'At 16.0 min average, H_068 is the only hospital-level statistical outlier above the outlier fence of 15.9 min. The last 3 months average 16.9 min and November reached 18.4 min — the worst single-month reading in the entire portfolio. Slower processing is a direct health risk indicator.'},
+     {sev:'high',label:'Confirmed volume decline -44.1%',reason:'Robust linear regression confirms a -44.1% trend — significantly worse than the prior -24.0% estimate. Volume has fallen from 45 in July to just 17 in November, a 62% decline over 5 months. This is a statistically confirmed, accelerating downward trend.'},
+     {sev:'med',label:'High sustained variability',reason:'Volume CV of 35.4% lifetime and 33.2% in the last 3 months indicates erratic usage with no stabilization. The combination of declining volume AND high variability is a strong churn predictor.'}
+   ],
+   note:'Two compounding risk signals: volume has declined 62% from its July peak (confirmed -44.1% robust trend) and processing time is the highest in the portfolio at 16.0 min and worsening. Recommend immediate technical review of processing pipeline and urgent call with lab director.'},
+
+  {id:'Hospital_017',health:'risk',status:'Live',usage:'Routine Use',
+   total_cases:0,avg_proc_min:null,trend_pct:null,view_rate:null,months_below:11,avg_vr:0,months_active:11,
+   cv_vol_life:null,cv_vol_3m:null,cv_pt_life:null,cv_pt_3m:null,combined_var:null,
+   months:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'],
+   cases:[0,0,0,0,0,0,0,0,0,0,0],
+   viewed:[0,0,0,0,0,0,0,0,0,0,0],
+   risks:[
+     {sev:'high',label:'Zero cases — 11 months',reason:'Live and contracted since January with not a single case processed through the AI in 11 months. This is a complete adoption failure. The contract is running with zero clinical value delivered.'},
+     {sev:'high',label:'Unknown root cause',reason:'No usage data means no signals to diagnose the problem. Root cause is unknown — possibilities include: technical integration failure, no digital scanner in place, champion pathologist departure, or active use of a competing product. Requires an on-site visit or escalation call immediately.'},
+     {sev:'high',label:'Imminent churn risk',reason:'Contracts that show zero usage for 6+ months have a very high probability of non-renewal. Without immediate intervention and a clear remediation plan, this account will not renew.'}
+   ],
+   note:'Most critical account in the portfolio. Live and contracted since January — 11 months — with zero case volume. Complete adoption failure requiring immediate escalation. Determine whether the issue is technical, clinical, or commercial.'},
+
+  /* ── EVALUATION · AT RISK — red visual styling, evaluation label kept ── */
+  {id:'Hospital_062',health:'warn',visual_risk:true,status:'Live',usage:'Evaluation',warn_label:'Evaluation · At Risk',
+   total_cases:127,avg_proc_min:14.9,trend_pct:-72.6,view_rate:100.0,months_below:0,avg_vr:100.0,months_active:8,
+   cv_vol_life:104.5,cv_vol_3m:84.5,cv_pt_life:16.0,cv_pt_3m:9.4,combined_var:63.8,
+   months:['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'],
+   cases:[4,14,36,47,10,10,1,5],
+   viewed:[4,14,36,47,10,10,1,5],
+   risks:[
+     {sev:'high',label:'Evaluation stall — 8 months',reason:'Still in evaluation after 8 months with no conversion to routine use. Industry benchmark for evaluation-to-conversion is 3–4 months. Prolonged evaluations almost always result in churn. An urgent conversion meeting with the lab director and clinical champion is required immediately.'},
+     {sev:'high',label:'Volume collapse -72.6%',reason:'Cases peaked at 47 in July (removed as outlier) and have fallen to near-zero — just 1 case in October. Robust trend confirms -72.6%. This is not a gradual decline, it is a near-complete cessation of use.'},
+     {sev:'high',label:'Highest variability in portfolio',reason:'Combined variability score of 63.8 vs portfolio leader H_058 at 4.9. This instability is incompatible with routine clinical deployment and signals no consistent workflow has been established.'},
+     {sev:'med',label:'Elevated processing time',reason:'Average 14.9 min and rising (last 3M avg 16.3 min including a spike to 18.4 min in April). Slow processing is a known driver of pathologist disengagement during evaluations.'}
+   ],
+   note:'Still in evaluation after 8 months. Volume peaked in July and has collapsed to near-zero. Conversion to routine use has stalled. Requires an urgent conversion conversation — evaluation accounts that plateau typically churn.'},
+
+  /* ── IMPLEMENTATION ── */
+  {id:'Hospital_034',health:'impl',status:'Implementation',usage:'Routine Use',
+   total_cases:0,avg_proc_min:0,trend_pct:0,view_rate:null,months_below:0,avg_vr:null,months_active:0,
+   cv_vol_life:null,cv_vol_3m:null,cv_pt_life:null,cv_pt_3m:null,combined_var:null,
+   months:['May','Jun','Jul','Aug','Sep','Oct','Nov'],
+   cases:[0,0,0,0,0,0,0],
+   viewed:[0,0,0,0,0,0,0],
+   risks:[
+     {sev:'med',label:'Extended implementation',reason:'7 months in implementation without going live is well above the typical 2–3 month onboarding period. Identify specific blockers: IT integration, scanner procurement, pathologist training, or administrative delays.'},
+     {sev:'low',label:'Shared risk with H_035',reason:'Same timeline as H_035. If these two accounts share a health system or implementation team, a single blocker may be holding both back simultaneously. A coordinated go-live plan may accelerate both.'}
+   ],
+   note:'In implementation since May 2025 — 7 months without going live is a long cycle. Confirm go-live timeline and identify any technical or operational blockers.'},
+
+  {id:'Hospital_035',health:'impl',status:'Implementation',usage:'Routine Use',
+   total_cases:0,avg_proc_min:0,trend_pct:0,view_rate:null,months_below:0,avg_vr:null,months_active:0,
+   cv_vol_life:null,cv_vol_3m:null,cv_pt_life:null,cv_pt_3m:null,combined_var:null,
+   months:['May','Jun','Jul','Aug','Sep','Oct','Nov'],
+   cases:[0,0,0,0,0,0,0],
+   viewed:[0,0,0,0,0,0,0],
+   risks:[
+     {sev:'med',label:'Extended implementation',reason:'Same 7-month implementation timeline as H_034. If these two accounts share a health system or implementation team, a single blocker may be holding both back simultaneously.'},
+     {sev:'low',label:'Shared risk with H_034',reason:'Coordinate go-live planning with H_034. A joint resolution may accelerate both accounts and reduce resource duplication on the implementation team.'}
+   ],
+   note:'In implementation since May 2025, same timeline as Hospital_034. If these accounts share a health system or implementation team, a coordinated go-live plan may accelerate both.'}
+];
+
+/* ── Scatter data ── */
+const avgHospitals=[
+  {label:'H_060',proc:12.8,health:'risk'},{label:'H_063',proc:13.1,health:'watch'},
+  {label:'H_041',proc:13.2,health:'healthy'},{label:'H_058',proc:13.3,health:'healthy'},
+  {label:'H_008',proc:14.3,health:'watch'},{label:'H_062',proc:14.9,health:'risk'},
+  {label:'H_068',proc:16.0,health:'risk'}
+];
+const AVG_UPPER=15.9,AVG_MEAN=13.9;
+function avgDotColor(h,p){if(p>AVG_UPPER)return'#E24B4A';if(p>=14.5)return'#EF9F27';return'#378ADD';}
+
+const allObs=[
+  {x:0,y:14.68,h:'H_008',m:'Jan'},{x:1,y:13.92,h:'H_008',m:'Feb'},{x:2,y:14.35,h:'H_008',m:'Mar'},
+  {x:3,y:13.50,h:'H_008',m:'Apr'},{x:4,y:16.50,h:'H_008',m:'May'},{x:5,y:13.83,h:'H_008',m:'Jun'},
+  {x:6,y:13.95,h:'H_008',m:'Jul'},{x:7,y:14.25,h:'H_008',m:'Aug'},{x:8,y:13.63,h:'H_008',m:'Sep'},
+  {x:9,y:15.53,h:'H_008',m:'Oct'},{x:10,y:13.68,h:'H_008',m:'Nov'},
+  {x:11,y:14.23,h:'H_041',m:'Jan'},{x:12,y:13.50,h:'H_041',m:'Feb'},{x:13,y:12.78,h:'H_041',m:'Mar'},
+  {x:14,y:13.02,h:'H_041',m:'Apr'},{x:15,y:13.28,h:'H_041',m:'May'},{x:16,y:13.47,h:'H_041',m:'Jun'},
+  {x:17,y:12.82,h:'H_041',m:'Jul'},{x:18,y:13.12,h:'H_041',m:'Aug'},{x:19,y:13.17,h:'H_041',m:'Sep'},
+  {x:20,y:13.07,h:'H_041',m:'Oct'},{x:21,y:13.05,h:'H_041',m:'Nov'},
+  {x:22,y:13.35,h:'H_058',m:'Jan'},{x:23,y:13.62,h:'H_058',m:'Feb'},{x:24,y:13.22,h:'H_058',m:'Mar'},
+  {x:25,y:13.12,h:'H_058',m:'Apr'},{x:26,y:13.27,h:'H_058',m:'May'},{x:27,y:13.45,h:'H_058',m:'Jun'},
+  {x:28,y:13.50,h:'H_058',m:'Jul'},{x:29,y:13.33,h:'H_058',m:'Aug'},{x:30,y:13.03,h:'H_058',m:'Sep'},
+  {x:31,y:13.13,h:'H_058',m:'Oct'},{x:32,y:12.95,h:'H_058',m:'Nov'},
+  {x:33,y:12.58,h:'H_060',m:'Jun'},{x:34,y:11.05,h:'H_060',m:'Jul'},{x:35,y:12.70,h:'H_060',m:'Aug'},
+  {x:36,y:13.97,h:'H_060',m:'Sep'},{x:37,y:13.32,h:'H_060',m:'Oct'},{x:38,y:12.90,h:'H_060',m:'Nov'},
+  {x:39,y:18.40,h:'H_062',m:'Apr'},{x:40,y:11.85,h:'H_062',m:'May'},{x:41,y:12.87,h:'H_062',m:'Jun'},
+  {x:42,y:13.03,h:'H_062',m:'Jul'},{x:43,y:14.23,h:'H_062',m:'Aug'},{x:44,y:16.53,h:'H_062',m:'Sep'},
+  {x:45,y:14.63,h:'H_062',m:'Oct'},{x:46,y:17.67,h:'H_062',m:'Nov'},
+  {x:47,y:16.07,h:'H_063',m:'Jun'},{x:48,y:12.63,h:'H_063',m:'Jul'},{x:49,y:13.50,h:'H_063',m:'Aug'},
+  {x:50,y:12.13,h:'H_063',m:'Sep'},{x:51,y:12.55,h:'H_063',m:'Oct'},{x:52,y:12.00,h:'H_063',m:'Nov'},
+  {x:53,y:16.67,h:'H_068',m:'Jun'},{x:54,y:13.90,h:'H_068',m:'Jul'},{x:55,y:14.87,h:'H_068',m:'Aug'},
+  {x:56,y:15.60,h:'H_068',m:'Sep'},{x:57,y:16.78,h:'H_068',m:'Oct'},{x:58,y:18.37,h:'H_068',m:'Nov'}
+];
+const ALL_UPPER=16.05,ALL_LOWER=11.22,ALL_MEAN=13.90;
+function allDotColor(y){if(y>ALL_UPPER)return'#E24B4A';if(y<ALL_LOWER)return'#3B8BD4';return'rgba(59,127,255,0.5)';}
+
+const annotAvg={annotation:{annotations:{
+  upperFence:{type:'line',yMin:AVG_UPPER,yMax:AVG_UPPER,borderColor:'rgba(180,178,169,0.45)',borderWidth:1.5,borderDash:[6,4],
+    label:{display:true,content:'Outlier fence — 15.9 min',position:'end',backgroundColor:'transparent',color:tc,font:{size:10},yAdjust:-10}},
+  meanLine:{type:'line',yMin:AVG_MEAN,yMax:AVG_MEAN,borderColor:'rgba(59,127,255,0.35)',borderWidth:1.5,borderDash:[3,3],
+    label:{display:true,content:'Mean — 13.9 min',position:'start',backgroundColor:'transparent',color:'#7b9fff',font:{size:10},yAdjust:-10}}
+}}};
+const annotAll={annotation:{annotations:{
+  upperFence:{type:'line',yMin:ALL_UPPER,yMax:ALL_UPPER,borderColor:'rgba(180,178,169,0.45)',borderWidth:1.5,borderDash:[6,4],
+    label:{display:true,content:'Upper fence 16.1',position:'end',backgroundColor:'transparent',color:tc,font:{size:10},yAdjust:-10}},
+  lowerFence:{type:'line',yMin:ALL_LOWER,yMax:ALL_LOWER,borderColor:'rgba(180,178,169,0.45)',borderWidth:1.5,borderDash:[6,4],
+    label:{display:true,content:'Lower fence 11.2',position:'end',backgroundColor:'transparent',color:tc,font:{size:10},yAdjust:14}},
+  meanLine:{type:'line',yMin:ALL_MEAN,yMax:ALL_MEAN,borderColor:'rgba(59,127,255,0.35)',borderWidth:1.5,borderDash:[3,3],
+    label:{display:true,content:'Mean 13.9',position:'start',backgroundColor:'transparent',color:'#7b9fff',font:{size:10},yAdjust:-10}}
+}}};
+
+const avgScatterChart = new Chart(document.getElementById('avgScatter'),{type:'scatter',
+  data:{datasets:[{data:avgHospitals.map((h,i)=>({x:i,y:h.proc})),pointRadius:9,pointHoverRadius:12,
+    backgroundColor:avgHospitals.map(h=>avgDotColor(h.health,h.proc)),borderColor:avgHospitals.map(h=>avgDotColor(h.health,h.proc)),borderWidth:2}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    cursor:'pointer',
+    plugins:{legend:{display:false},
+    tooltip:{backgroundColor:'#111827',borderColor:'rgba(255,255,255,0.12)',borderWidth:1,titleColor:lc,bodyColor:tc,padding:10,titleFont:{family:'Josefin Sans',size:12},bodyFont:{family:'Josefin Sans',size:11},
+      callbacks:{title:c=>avgHospitals[c[0].raw.x].label,label:c=>{const p=avgHospitals[c.dataIndex].proc;return`Avg: ${p.toFixed(1)} min${p>AVG_UPPER?' — OUTLIER':p>=14.5?' — elevated':' — normal'}`},afterLabel:()=>'Click to open account ↓'}},
+    ...annotAvg},
+  scales:{x:{type:'linear',min:-.5,max:6.5,grid:{display:false},ticks:{color:tc,font:{family:'Josefin Sans',size:10},stepSize:1,callback:v=>{const h=avgHospitals[Math.round(v)];return h?h.label:'';},autoSkip:false,maxRotation:0}},
+    y:{min:11.5,max:17.5,grid:{color:gc},ticks:{color:tc,font:{family:'Josefin Sans',size:10},callback:v=>v.toFixed(1)+' min'}}},
+  layout:{padding:{top:28,right:110,bottom:5,left:5}},
+  onClick:function(evt){
+    const points=avgScatterChart.getElementsAtEventForMode(evt,'nearest',{intersect:true},false);
+    if(!points.length)return;
+    const idx=points[0].index;
+    const label=avgHospitals[idx].label; // e.g. "H_060"
+    const fullId='Hospital_'+label.split('_')[1]; // e.g. "Hospital_060"
+    const customer=customers.find(c=>c.id===fullId);
+    if(!customer)return;
+    // Scroll to customer grid then open detail
+    document.getElementById('customerGrid').scrollIntoView({behavior:'smooth',block:'start'});
+    setTimeout(()=>openDetail(customer),400);
+  }}
+});
+
+new Chart(document.getElementById('allScatter'),{type:'scatter',
+  data:{datasets:[{data:allObs,pointRadius:6,pointHoverRadius:9,
+    backgroundColor:allObs.map(d=>allDotColor(d.y)),borderColor:allObs.map(d=>allDotColor(d.y)),borderWidth:1.5}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+    tooltip:{backgroundColor:'#111827',borderColor:'rgba(255,255,255,0.12)',borderWidth:1,titleColor:lc,bodyColor:tc,padding:10,titleFont:{family:'Josefin Sans',size:12},bodyFont:{family:'Josefin Sans',size:11},
+      callbacks:{title:c=>`${c[0].raw.h}  ·  ${c[0].raw.m} 2025`,label:c=>{const y=c.raw.y;return`${y.toFixed(2)} min${y>ALL_UPPER?' ↑ outlier':y<ALL_LOWER?' ↓ outlier':' — normal'}`}}},
+    ...annotAll},
+  scales:{x:{type:'linear',min:-1,max:59,grid:{color:gc},ticks:{display:false},title:{display:true,text:'Each point = one hospital-month observation (n=59)',color:tc,font:{family:'Josefin Sans',size:10}}},
+    y:{min:9.5,max:20,grid:{color:gc},ticks:{color:tc,font:{family:'Josefin Sans',size:10},callback:v=>v.toFixed(1)+' min'}}},
+  layout:{padding:{top:28,right:80,bottom:5,left:5}}}
+});
+
+/* ── Cards ── */
+const miniCharts={};
+let detailChart=null;
+
+function varBadge(val,label){
+  const c=varColor(val);
+  const d=val!==null&&val!==undefined?val.toFixed(1)+'%':'—';
+  return`<div><div class="var-label">${label}</div><div class="var-val" style="color:${c}">${d}</div></div>`;
+}
+
+function renderCards(){
+  const grid=document.getElementById('customerGrid');
+  grid.innerHTML='';
+  customers.forEach(c=>{
+    const trend=c.trend_pct;
+    const trendStr=trend===null?'No data':(trend===0?'—':(trend>0?'+':'')+trend.toFixed(1)+'%');
+    const trendCol=trend===null?'#ff5c5c':trendColor(trend);
+    const vrDisplay=c.view_rate===null?'0%':c.view_rate>=100?'100%':c.view_rate.toFixed(1)+'%';
+    const vrCol=viewColor(c.view_rate,c.months_below,c.avg_vr);
+    const ptDisplay=c.avg_proc_min===null?'0 min':c.avg_proc_min>0?c.avg_proc_min.toFixed(1)+' min':'—';
+    const ptCol=c.avg_proc_min===null?'#ff5c5c':procColor(c.avg_proc_min);
+    const pillLabel=c.warn_label||HEALTH_LABEL[c.health];
+    const usageKey=c.usage==='Routine Use'?'routine':'eval';
+    const statusKey=c.status==='Live'?'live':'impl-st';
+    let varCompare='';
+    if(c.cv_vol_life!==null&&c.cv_vol_3m!==null){
+      const diff=c.cv_vol_3m-c.cv_vol_life;
+      const col=diff<-2?'#00d4aa':diff>2?'#ff5c5c':'#a0aac8';
+      const sym=diff<-2?'↓ stabilizing':diff>2?'↑ worsening':'→ stable';
+      varCompare=`<div class="var-compare" style="color:${col}">${sym}</div>`;
+    }
+    const visualClass=c.visual_risk?'risk':c.health;
+    const borderColor=HEALTH_COLOR[visualClass];
+    const card=document.createElement('div');
+    card.className=`customer-card ${c.health}${c.visual_risk?' visual-risk':''}`;
+    card.dataset.health=c.health;
+    card.dataset.id=c.id;
+    card.style.borderLeftColor=borderColor;
+    card.innerHTML=`
+      <div class="card-header">
+        <div>
+          <div class="card-name">${c.id.replace('_',' ')}</div>
+          <div class="card-badges">
+            <span class="badge badge-${statusKey}">${c.status}</span>
+            <span class="badge badge-${usageKey}">${c.usage}</span>
+          </div>
+        </div>
+        <span class="health-pill ${c.health}">${pillLabel}</span>
+      </div>
+      ${c.risks.length>0?`<div class="risk-factors">${c.risks.slice(0,2).map(r=>`
+        <div class="risk-factor sev-${r.sev}"><div class="risk-dot sev-${r.sev}"></div><div class="risk-text">${r.label}</div></div>`).join('')}${c.risks.length>2?`<div class="risk-factor sev-low"><div class="risk-dot sev-low"></div><div class="risk-text">+${c.risks.length-2} more — click to expand</div></div>`:''}</div>`:''}
+      <div class="card-stats">
+        <div><div class="stat-label">Total cases</div><div class="stat-value">${c.total_cases.toLocaleString()}</div></div>
+        <div><div class="stat-label">Trend</div><div class="stat-value" style="color:${trendCol}">${trendStr}</div></div>
+        <div><div class="stat-label">View rate</div><div class="stat-value" style="color:${vrCol}">${vrDisplay}</div></div>
+      </div>
+      <div class="var-section">
+        <div class="var-title">Variability &amp; stability</div>
+        <div class="var-grid">${varBadge(c.combined_var,'Combined score')}${varBadge(c.cv_vol_life,'Volume CV — life')}${varBadge(c.cv_vol_3m,'Volume CV — 3M')}</div>
+        <div class="var-grid" style="margin-top:8px;"><div></div>${varBadge(c.cv_pt_life,'Proc time CV — life')}${varBadge(c.cv_pt_3m,'Proc time CV — 3M')}</div>
+        ${varCompare}
+      </div>
+      <div class="mini-chart-container"><canvas id="mini_${c.id}"></canvas></div>`;
+    card.addEventListener('click',()=>openDetail(c));
+    grid.appendChild(card);
+    setTimeout(()=>{
+      const ctx=document.getElementById(`mini_${c.id}`);
+      if(!ctx)return;
+      const color=HEALTH_COLOR[c.visual_risk?'risk':c.health];
+      miniCharts[c.id]=new Chart(ctx,{type:'line',
+        data:{labels:c.months,datasets:[{data:c.cases,borderColor:color,borderWidth:2,pointRadius:1,pointBackgroundColor:color,fill:true,backgroundColor:color+'1a',tension:0}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false,beginAtZero:true}},animation:{duration:600}}
+      });
+    },50);
+  });
+}
+
+function filterCards(type,btn){
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  document.querySelectorAll('.customer-card').forEach(card=>{
+    card.style.display=(type==='all'||card.dataset.health===type)?'':'none';
+  });
+  closeDetail();
+  document.getElementById('customerGrid').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function filterByStatus(status){
+  const inactiveIds=['Hospital_017','Hospital_034','Hospital_035'];
+  const zeroIds=['Hospital_017'];
+  const liveIds=customers.filter(c=>!inactiveIds.includes(c.id)).map(c=>c.id);
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  if(status==='all'){
+    document.querySelector('.f-all').classList.add('active');
+    document.querySelectorAll('.customer-card').forEach(card=>card.style.display='');
+  } else if(status==='inactive'){
+    document.querySelectorAll('.customer-card').forEach(card=>{
+      card.style.display=inactiveIds.includes(card.dataset.id)?'':'none';
+    });
+  } else if(status==='zerousage'){
+    document.querySelectorAll('.customer-card').forEach(card=>{
+      card.style.display=zeroIds.includes(card.dataset.id)?'':'none';
+    });
+  } else if(status==='live'){
+    document.querySelectorAll('.customer-card').forEach(card=>{
+      card.style.display=!inactiveIds.includes(card.dataset.id)?'':'none';
+    });
+  }
+  closeDetail();
+  document.getElementById('customerGrid').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function openDetail(c){
+  document.querySelectorAll('.customer-card').forEach(el=>el.classList.remove('active-card'));
+  document.querySelector(`[data-id="${c.id}"]`).classList.add('active-card');
+  const panel=document.getElementById('detailPanel');
+  panel.classList.add('visible');
+  document.getElementById('detailTitle').textContent=c.id.replace('_',' ');
+  const usageKey=c.usage==='Routine Use'?'routine':'eval';
+  const statusKey=c.status==='Live'?'live':'impl-st';
+  const pillLabel=c.warn_label||HEALTH_LABEL[c.health];
+  document.getElementById('detailBadges').innerHTML=`
+    <span class="badge badge-${statusKey}">${c.status}</span>
+    <span class="badge badge-${usageKey}">${c.usage}</span>
+    <span class="health-pill ${c.health}">${pillLabel}</span>`;
+  if(detailChart)detailChart.destroy();
+  const ctx=document.getElementById('detailChart').getContext('2d');
+  const color=HEALTH_COLOR[c.health];
+  detailChart=new Chart(ctx,{type:'bar',
+    data:{labels:c.months,datasets:[
+      {label:'Cases processed',data:c.cases,backgroundColor:color+'33',borderColor:color,borderWidth:2,borderRadius:4},
+      {label:'Cases viewed',data:c.viewed,type:'line',borderColor:'#3b7fff',borderWidth:2,pointBackgroundColor:'#3b7fff',pointRadius:1,fill:false,tension:0}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#a0aac8',font:{family:'Josefin Sans',size:10},boxWidth:10}},
+        tooltip:{backgroundColor:'#111827',borderColor:'rgba(255,255,255,0.12)',borderWidth:1,titleColor:lc,bodyColor:tc,padding:12,titleFont:{family:'Josefin Sans',weight:'600',size:12},bodyFont:{family:'Josefin Sans',size:11}}},
+      scales:{x:{ticks:{color:tc,font:{family:'Josefin Sans',size:10}},grid:{color:gc}},y:{beginAtZero:true,ticks:{color:tc,font:{family:'Josefin Sans',size:10}},grid:{color:gc}}}}
+  });
+  document.getElementById('detailRisks').innerHTML=`
+    <div class="section-title" style="margin-top:20px;margin-bottom:12px;">Risk factors</div>
+    ${c.risks.map(r=>`
+      <div class="detail-risk-item sev-${r.sev}">
+        <div class="detail-risk-header"><div class="risk-dot sev-${r.sev}"></div><div class="detail-risk-title">${r.label}</div></div>
+        <div class="detail-risk-reason">${r.reason}</div>
+      </div>`).join('')}`;
+  const trend=c.trend_pct;
+  const trendStr=trend===null?'No data':trend===0?'Flat':(trend>0?'+':'')+trend.toFixed(1)+'%';
+  const trendCol=trend===null?'#ff5c5c':trendColor(trend);
+  const vrDisplay=c.view_rate===null?'0%':c.view_rate>=100?'100%':c.view_rate.toFixed(1)+'%';
+  const vrCol=viewColor(c.view_rate,c.months_below,c.avg_vr);
+  const ptDisplay=c.avg_proc_min===null?'0 min':c.avg_proc_min>0?c.avg_proc_min.toFixed(1)+' min':'—';
+  const ptCol=c.avg_proc_min===null?'#ff5c5c':procColor(c.avg_proc_min);
+  document.getElementById('detailInsights').innerHTML=`
+    <div class="insight-row"><span class="insight-label">Total cases (YTD)</span><span class="insight-value">${c.total_cases.toLocaleString()}</span></div>
+    <div class="insight-row"><span class="insight-label">Avg processing time</span><span class="insight-value" style="color:${ptCol}">${ptDisplay}</span></div>
+    <div class="insight-row"><span class="insight-label">Case view rate</span><span class="insight-value" style="color:${vrCol}">${vrDisplay}</span></div>
+    <div class="insight-row"><span class="insight-label">Volume trend</span><span class="insight-value" style="color:${trendCol}">${trendStr}</span></div>
+    <div class="insight-row"><span class="insight-label">Months active</span><span class="insight-value">${c.months_active} of ${c.months.length}</span></div>
+    <div class="insight-row"><span class="insight-label">Combined variability</span><span class="insight-value" style="color:${varColor(c.combined_var)}">${c.combined_var!==null?c.combined_var.toFixed(1)+'%':'—'}</span></div>
+    <div class="insight-row"><span class="insight-label">Volume CV — lifetime</span><span class="insight-value" style="color:${varColor(c.cv_vol_life)}">${c.cv_vol_life!==null?c.cv_vol_life.toFixed(1)+'%':'—'}</span></div>
+    <div class="insight-row"><span class="insight-label">Volume CV — last 3M</span><span class="insight-value" style="color:${varColor(c.cv_vol_3m)}">${c.cv_vol_3m!==null?c.cv_vol_3m.toFixed(1)+'%':'—'}</span></div>
+    <div class="insight-row"><span class="insight-label">Proc time CV — lifetime</span><span class="insight-value" style="color:${varColor(c.cv_pt_life)}">${c.cv_pt_life!==null?c.cv_pt_life.toFixed(1)+'%':'—'}</span></div>
+    <div class="insight-row"><span class="insight-label">Proc time CV — last 3M</span><span class="insight-value" style="color:${varColor(c.cv_pt_3m)}">${c.cv_pt_3m!==null?c.cv_pt_3m.toFixed(1)+'%':'—'}</span></div>
+    <div class="account-note"><div class="stat-label" style="margin-bottom:8px;">Account narrative</div><div class="account-note-text">${c.note}</div></div>`;
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function closeDetail(){
+  document.getElementById('detailPanel').classList.remove('visible');
+  document.querySelectorAll('.customer-card').forEach(el=>el.classList.remove('active-card'));
+}
+
+function renderTable(){
+  const tbody=document.getElementById('summaryTable');
+  tbody.innerHTML='';
+  customers.forEach(c=>{
+    const trend=c.trend_pct;
+    const trendStr=trend===null?'No data':trend===0?'—':(trend>0?'▲ ':'▼ ')+Math.abs(trend).toFixed(1)+'%';
+    const trendCol=trend===null?'#ff5c5c':trendColor(trend);
+    const vrDisplay=c.view_rate===null?'0%':c.view_rate>=100?'100%':c.view_rate.toFixed(1)+'%';
+    const vrCol=viewColor(c.view_rate,c.months_below,c.avg_vr);
+    const ptDisplay=c.avg_proc_min===null?'0 min':c.avg_proc_min>0?c.avg_proc_min.toFixed(1)+' min':'—';
+    const ptCol=c.avg_proc_min===null?'#ff5c5c':procColor(c.avg_proc_min);
+    const pillLabel=c.warn_label||HEALTH_LABEL[c.health];
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><span class="dot ${c.health}"></span>${c.id.replace('_',' ')}</td>
+      <td><span class="health-pill ${c.health}" style="font-size:9px;padding:4px 12px;">${pillLabel}</span></td>
+      <td>${c.status}</td><td>${c.usage}</td>
+      <td>${c.total_cases.toLocaleString()}</td>
+      <td style="color:${trendCol}">${trendStr}</td>
+      <td style="color:${vrCol}">${vrDisplay}</td>
+      <td style="color:${ptCol}">${ptDisplay}</td>
+      <td>${c.months_active}</td>`;
+    tr.addEventListener('click',()=>{
+      // Filter customer grid to show only this account
+      document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.customer-card').forEach(card=>{
+        card.style.display=card.dataset.id===c.id?'':'none';
+      });
+      closeDetail();
+      document.getElementById('customerGrid').scrollIntoView({behavior:'smooth',block:'start'});
+      setTimeout(()=>openDetail(c),400);
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+/* ── Pie chart: account status ── */
+(function(){
+  const pieData = [
+    { label:'Live · Active',    value:6, color:'#60b4ff', action:function(){filterByStatus('live');} },
+    { label:'Live · Evaluation',value:1, color:'#f59e0b', action:function(){filterCards('warn', document.querySelector('.f-warn'));} },
+    { label:'Live · Zero usage', value:1, color:'#ff5c5c', action:function(){filterByStatus('zerousage');} },
+    { label:'Inactive (Impl)',   value:2, color:'#3d2828', action:function(){filterByStatus('inactive');} },
+  ];
+  const pieCtx = document.getElementById('pieChart');
+  pieCtx.style.cursor='pointer';
+  const pieChart = new Chart(pieCtx, {
+    type: 'pie',
+    data: {
+      labels: pieData.map(d=>d.label),
+      datasets:[{
+        data: pieData.map(d=>d.value),
+        backgroundColor: pieData.map(d=>d.color),
+        borderColor: '#111827',
+        borderWidth: 3,
+        hoverOffset: 10,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#111827',borderColor:'rgba(255,255,255,0.12)',borderWidth:1,
+          titleColor:'#ffffff',bodyColor:'#a0aac8',padding:10,
+          titleFont:{family:'Josefin Sans',weight:'600',size:11},
+          bodyFont:{family:'Josefin Sans',size:10},
+          callbacks:{
+            label:function(ctx){return ' '+ctx.raw+' account'+(ctx.raw!==1?'s':'');},
+            afterLabel:function(){return 'Click to filter ↓';}
+          }
+        }
+      },
+      onClick:function(evt){
+        const points=pieChart.getElementsAtEventForMode(evt,'nearest',{intersect:true},false);
+        if(!points.length)return;
+        pieData[points[0].index].action();
+      }
+    }
+  });
+  const pieLeg = document.getElementById('pieLegend');
+  pieData.forEach(function(d,i){
+    const el=document.createElement('div');
+    el.className='ov-leg-i';
+    el.style.cursor='pointer';
+    el.innerHTML=`<div class="ov-leg-dot" style="background:${d.color}"></div>${d.label} (${d.value})`;
+    el.addEventListener('click', d.action);
+    pieLeg.appendChild(el);
+  });
+})();
+
+/* ── Doughnut chart: health tier breakdown ── */
+(function(){
+  const donutData = [
+    { label:'Healthy',        value:2, color:'#00d4aa', filter:'healthy' },
+    { label:'Watch',          value:3, color:'#8ecf3f', filter:'watch'   },
+    { label:'At Risk',        value:2, color:'#ff5c5c', filter:'risk'    },
+    { label:'Evaluation',     value:1, color:'#f59e0b', filter:'warn'    },
+    { label:'Implementation', value:2, color:'#252d3d', filter:'impl'    },
+  ];
+  const donutCtx = document.getElementById('donutChart');
+  donutCtx.style.cursor='pointer';
+  const donutChart = new Chart(donutCtx, {
+    type: 'doughnut',
+    data: {
+      labels: donutData.map(d=>d.label),
+      datasets:[{
+        data: donutData.map(d=>d.value),
+        backgroundColor: donutData.map(d=>d.color),
+        borderColor: '#111827',
+        borderWidth: 3,
+        hoverOffset: 10,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      cutout:'62%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#111827',borderColor:'rgba(255,255,255,0.12)',borderWidth:1,
+          titleColor:'#ffffff',bodyColor:'#a0aac8',padding:10,
+          titleFont:{family:'Josefin Sans',weight:'600',size:11},
+          bodyFont:{family:'Josefin Sans',size:10},
+          callbacks:{
+            label:function(ctx){return ' '+ctx.raw+' account'+(ctx.raw!==1?'s':'');},
+            afterLabel:function(){return 'Click to filter ↓';}
+          }
+        }
+      },
+      onClick:function(evt){
+        const points=donutChart.getElementsAtEventForMode(evt,'nearest',{intersect:true},false);
+        if(!points.length)return;
+        const d=donutData[points[0].index];
+        filterCards(d.filter, document.querySelector('.f-'+d.filter));
+      }
+    },
+    plugins:[{
+      id:'donutCentre',
+      beforeDraw:function(chart){
+        const {ctx,chartArea:{width,height,left,top}}=chart;
+        ctx.save();
+        ctx.font='600 28px Josefin Sans, sans-serif';
+        ctx.fillStyle='#ffffff';
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText('10',left+width/2,top+height/2-10);
+        ctx.font='300 10px Josefin Sans, sans-serif';
+        ctx.fillStyle='#a0aac8';
+        ctx.letterSpacing='0.15em';
+        ctx.fillText('ACCOUNTS',left+width/2,top+height/2+14);
+        ctx.restore();
+      }
+    }]
+  });
+  const donutLeg = document.getElementById('donutLegend');
+  donutData.forEach(function(d){
+    const el=document.createElement('div');
+    el.className='ov-leg-i';
+    el.style.cursor='pointer';
+    el.innerHTML=`<div class="ov-leg-dot" style="background:${d.color}"></div>${d.label} (${d.value})`;
+    el.addEventListener('click',function(){filterCards(d.filter, document.querySelector('.f-'+d.filter));});
+    donutLeg.appendChild(el);
+  });
+})();
+
+renderCards();
+renderTable();
+
+/* ── Portfolio snapshot line chart ── */
+const snapshotSeries=[
+  {id:'H_041',color:'#00d4aa',health:'healthy',
+   labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'],
+   data:[704,763,818,793,816,717,890,751,826,913,792]},
+  {id:'H_058',color:'#5dcaa5',health:'healthy',
+   labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'],
+   data:[508,602,550,540,567,567,602,507,607,644,558]},
+  {id:'H_008',color:'#8ecf3f',health:'watch',
+   labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'],
+   data:[149,149,193,170,221,164,228,200,240,240,219]},
+  {id:'H_063',color:'#b5e05a',health:'watch',
+   labels:['Jun','Jul','Aug','Sep','Oct','Nov'],
+   data:[28,43,54,31,45,42]},
+  {id:'H_060',color:'#c8d45a',health:'watch',
+   labels:['Jun','Jul','Aug','Sep','Oct','Nov'],
+   data:[33,165,180,170,189,131]},
+  {id:'H_068',color:'#ff5c5c',health:'risk',
+   labels:['Jun','Jul','Aug','Sep','Oct','Nov'],
+   data:[22,45,29,33,23,17]},
+  {id:'H_062',color:'#ff4444',health:'warn',
+   labels:['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'],
+   data:[4,14,36,47,10,10,1,5]},
+  {id:'H_017',color:'#c0392b',health:'risk',
+   labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'],
+   data:[0,0,0,0,0,0,0,0,0,0,0]},
+];
+
+// All labels Jan–Nov
+const allLabels=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'];
+
+// Build legend
+const legEl=document.getElementById('snapshotLegend');
+snapshotSeries.forEach(s=>{
+  const i=document.createElement('div');
+  i.className='snap-leg-i';
+  i.innerHTML=`<div class="snap-leg-line" style="background:${s.color}"></div>${s.id}`;
+  legEl.appendChild(i);
+});
+
+// Map each series to allLabels (null for missing months)
+// H_017 maps as 1 (log scale can't show 0, so we pin it just above axis baseline)
+const monthIdx={Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10};
+function toAllLabels(labels,data,isZero){
+  const out=new Array(11).fill(null);
+  labels.forEach((m,i)=>{
+    if(monthIdx[m]!==undefined) out[monthIdx[m]]=isZero?0.5:data[i];
+  });
+  return out;
+}
+
+const datasets=snapshotSeries.map(s=>({
+  label:s.id,
+  data:toAllLabels(s.labels,s.data,s.id==='H_017'),
+  borderColor:s.color,
+  backgroundColor:'transparent',
+  borderWidth:2,
+  borderDash:[],
+  pointRadius:3,
+  pointBackgroundColor:s.color,
+  pointHoverRadius:6,
+  tension:0,
+  spanGaps:true,
+}));
+
+const snapshotChart = new Chart(document.getElementById('snapshotChart'),{
+  type:'line',
+  data:{labels:allLabels,datasets},
+  options:{responsive:true,maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{display:false},
+      tooltip:{backgroundColor:'#111827',borderColor:'rgba(255,255,255,0.12)',borderWidth:1,
+        titleColor:'#ffffff',bodyColor:'#a0aac8',padding:12,
+        titleFont:{family:'Josefin Sans',weight:'600',size:11},
+        bodyFont:{family:'Josefin Sans',size:10},
+        filter:function(item){return item.raw!==null;},
+        callbacks:{
+          label:function(ctx){
+            const raw=ctx.raw;
+            const lbl=ctx.dataset.label;
+            if(lbl==='H_017')return lbl+': 0 cases (no usage)';
+            return lbl+': '+(raw!==null?raw+' cases':'—');
+          },
+          afterBody:function(){return 'Click to open account ↓';}
+        }},
+      annotation:{annotations:{
+        last3:{type:'box',xMin:7.5,xMax:10.5,
+          backgroundColor:'rgba(59,127,255,0.05)',
+          borderColor:'rgba(59,127,255,0.12)',borderWidth:1},
+        zeroLine:{type:'line',yMin:0.5,yMax:0.5,
+          borderColor:'rgba(192,57,43,0.35)',borderWidth:1,borderDash:[4,4]}
+      }}
+    },
+    scales:{
+      x:{ticks:{color:'#a0aac8',font:{family:'Josefin Sans',size:10}},
+         grid:{color:'rgba(255,255,255,0.04)'}},
+      y:{type:'logarithmic',
+         min:0.4,
+         ticks:{color:'#a0aac8',font:{family:'Josefin Sans',size:10},
+           callback:function(val){
+             if(val===0.5)return'0 — H_017';
+             const nice=[1,2,5,10,20,50,100,200,500,1000];
+             return nice.includes(val)?val:'';
+           }},
+         grid:{color:'rgba(255,255,255,0.04)'}}
+    },
+    layout:{padding:{top:20,right:20,bottom:5,left:5}},
+    onClick:function(evt){
+      const points=snapshotChart.getElementsAtEventForMode(evt,'nearest',{intersect:false},false);
+      if(!points.length)return;
+      const shortId=datasets[points[0].datasetIndex].label; // e.g. H_041
+      const fullId='Hospital_'+shortId.split('_')[1];
+      const customer=customers.find(c=>c.id===fullId);
+      if(!customer)return;
+      document.getElementById('customerGrid').scrollIntoView({behavior:'smooth',block:'start'});
+      setTimeout(function(){openDetail(customer);},400);
+    }
+  }
+});
+document.getElementById('snapshotChart').style.cursor='pointer';
+</script>
+</body>
+</html>
